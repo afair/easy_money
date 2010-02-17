@@ -1,0 +1,74 @@
+# EasyMoney - Ruby class mixin library to add money helpers to attributes
+module EasyMoney
+
+  def self.included(base)
+    base.extend( ClassMethods )
+  end
+
+  module ClassMethods
+    def money_in_cents(method, *args)
+      options = {:precision=>2, :name=>"#{method}_dollars", :nil=>'',
+        :credit_regex=>/^(.*\d)\s*cr/i, :decimal_point=>'.', :thousands=>'', :locale=>'us'  }
+      options.merge(args.pop) if args.last.is_a?(Hash)
+      [:negative, :zero, :positive].each do |opt|
+        options[opt] ||= "%.#{options[:precision]}f"
+      end
+
+      class_eval %Q(
+      def #{options[:name]}(*args)
+        EasyMoney.format_money( #{method}, #{options[:precision]}, '#{options[:positive]}', '#{options[:zero]}', '#{options[:negative]}', '#{options[:nil]}' )
+      end
+
+      def #{options[:name]}=(v)
+        self.#{method} = EasyMoney.money_to_cents(v, #{options[:precision]}, '#{options[:credit_regex]}')
+      end
+      )
+    end
+  end
+
+  def self.format_money(value, precision=2, positive_pattern=nil, zero_pattern=nil, 
+                        negative_pattern=nil, nil_pattern=nil)
+    positive_pattern ||= "%.#{precision}f"
+    pattern = 
+      if value.nil?
+        value = 0
+        nil_pattern || positive_pattern
+      else
+        case value <=> 0
+        when  1 then positive_pattern
+        when  0 then zero_pattern || positive_pattern
+        else  
+          value = -value if negative_pattern && negative_pattern != positive_pattern
+          negative_pattern || positive_pattern
+        end
+      end
+    sprintf( pattern, 1.0 * value / 100  )
+  end
+
+  def self.money_to_cents(value, precision=2, credit_regex=/^(.*\d)\s*cr/i)
+    m = value.to_s.match(credit_regex)
+    value = "-#{m[1]}" if m && m[1]
+    value = (value.to_f*(10**(precision+1))).to_i/10 # helps rounding 4.56 -> 455 ouch!
+  end
+
+end
+
+class AR
+  include EasyMoney
+  attr_accessor :price
+  money_in_cents :price
+end
+
+
+# ar = AR.new
+# [1234, 0, -123].each do |p|
+#   ar.price = p
+#   puts ar.price_dollars
+#   ar.price_dollars = ar.price_dollars
+#   puts ar.price
+# end
+# puts "---"
+# %W( 123.34 -123 45.6CR ).each do |p|
+#   ar.price_dollars = p
+#   puts ar.price
+# end
