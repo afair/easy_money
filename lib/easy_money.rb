@@ -9,7 +9,7 @@ module EasyMoney
 
     # Creates an money instance method for the given method, named "#{method}_money" which returns
     # a formatted money string, and a #{method}_money= method used to set an edited money string.
-    # The original method stores the value as cents (or other precision/currency setting). Options:
+    # The original method stores the value as integer (cents, or other precision/currency setting). Options:
     # * :money_method - Use this as the alternative name to the money-access methods
     # * :units - Use this as an alternative suffix name to the money methods ('dollars' gives 'xx_dollars')
     # * :precision - The number of digits implied after the decimal, default is 2
@@ -20,28 +20,29 @@ module EasyMoney
     # * :zero - The sprintf format to use for zero, default is same as :positive
     # * :nil - The sprintf format to use for nil values, default none
     # * :unit - Prepend this to the front of the money value, say '$', default none
+    # * :blank - Return this value when the money string is empty or has no digits on assignment
     # * :credit_regex - A Regular Expression used to determine if a number is negative (and without a - sign)
     #
-    def money_in_cents(method, *args)
+    def easy_money(method, *args)
       opt = args.last.is_a?(Hash) ? args.pop : {}
       money_method = opt.delete(:money_method) || "#{method}_#{opt.delete(:units)||'money'}"
 
       class_eval %Q(
       def #{money_method}(*args)
         opt = args.last.is_a?(Hash) ? args.pop : {}
-        EasyMoney.cents_to_money( #{method}, #{opt.inspect}.merge(opt))
+        EasyMoney.integer_to_money( #{method}, #{opt.inspect}.merge(opt))
       end
 
       def #{money_method}=(v, *args)
         opt = args.last.is_a?(Hash) ? args.pop : {}
-        self.#{method} = EasyMoney.money_to_cents( v, #{opt.inspect}.merge(opt))
+        self.#{method} = EasyMoney.money_to_integer( v, #{opt.inspect}.merge(opt))
       end
       )
     end
   end
 
-  # Returns the money string of the given integer value. Uses relevant options from #money_in_cents
-  def self.cents_to_money(value, *args)
+  # Returns the money string of the given integer value. Uses relevant options from #easy_money
+  def self.integer_to_money(value, *args)
     opt = args.last.is_a?(Hash) ? args.pop : {}
     opt[:positive] ||= "%.#{opt[:precision]||2}f"
     pattern = 
@@ -57,7 +58,8 @@ module EasyMoney
           opt[:negative] || opt[:positive]
         end
       end
-    value = sprintf( pattern, 1.0 * value / (10**(opt[:precision]||2)) )
+    #value = sprintf( pattern, 1.0 * value / (10**(opt[:precision]||2)) )
+    value = sprintf( pattern, self.integer_to_float(value, opt))
     value = opt[:unit]+value if opt[:unit]
     value.gsub!(/\./,opt[:separator]) if opt[:separator]
     if opt[:delimiter] && (m = value.match(/^(\D*)(\d+)(.*)/))
@@ -68,16 +70,29 @@ module EasyMoney
     value
   end
 
-  # Returns the integer  of the given money string. Uses relevant options from #money_in_cents
-  def self.money_to_cents(value, *args)
+  def self.integer_to_float(value, *args)
+    opt = args.last.is_a?(Hash) ? args.pop : {}
+    return (opt[:blank]||nil) if value.nil?
+    value = 1.0 * value / (10**(opt[:precision]||2)) 
+  end
+
+  # Returns the integer of the given money string. Uses relevant options from #easy_money
+  def self.money_to_integer(value, *args)
     opt = args.last.is_a?(Hash) ? args.pop : {}
     value.gsub!(opt[:delimiter],'') if opt[:delimiter]
     value.gsub!(opt[:separator],'.') if opt[:separator]
     value.gsub!(/^[^\d\.\-\,]+/,'')
+    return (opt[:blank]||nil) unless value =~ /\d/
     m = value.to_s.match(opt[:credit_regex]||/^(-?)(.+\d)\s*cr/i)
     value = value.match(/^-/) ? m[2] : "-#{m[2]}" if m && m[2]
-    value = (value.to_f*(10**((opt[:precision]||2)+1))).to_i/10 # helps rounding 4.56 -> 455 ouch!
+    value = self.float_to_integer(value.to_f, opt)
     value
+  end
+
+  def self.float_to_integer(value, *args)
+    opt = args.last.is_a?(Hash) ? args.pop : {}
+    return (opt[:blank]||nil) if value.nil?
+    value = (value.to_f*(10**((opt[:precision]||2)+1))).to_i/10 # helps rounding 4.56 -> 455 ouch!
   end
 
 end

@@ -2,41 +2,43 @@
 
 A Ruby mixin library to add simple money display and editing using data stored as an integer in 
 cents or other precision or currency.
+Easy Money is a simpler alternative to the "money" gem, and easier to use, hence the name.
 
-We know not to use float types for money, as the rounding and decimal representation quirks are
-not tolerated for finance. Integers are preferred, and storing the currency with implied decimal
-makes for additional work translating back and forth. 
+Float types are not good for storing and computing financial data because of rounding and conversion
+between floats and decimal precision and slower performance compared to integer arithmetic. Integers
+are preferred in this case, with a dollar amount ($1.00) stored as cents (100) internally.
 
-Other money libraries exist that work well, but sometimes, a simpler
-interface is all you need, especially when you are displaying and editing these values.
+
+Easy Money will also handle any float data stored as integer in the database for this reason, such
+as FM Radio Frequencies (88.1 FM) or an NTRP Tennis Rating (4.5).
 
 == Quick Start
-Easy Money works in any Ruby class, it does not require Active Record or other ORM.
+Easy Money works in any Ruby class, it does not require Active Record or other ORM. 
+Its default setting allow it to work on US Dollar amounts stored in cents, but is easily configured.
 
  require 'rubygems' # unless RAILS
  require 'easy_money' # Or define in your Gemfile, config/environment.rb, etc.
  
- class AccountReceivable
+ class Ledger
    include EasyMoney
    attr_accessor :amount, :euro # Integer value of cents
-   money_in_cents :amount
-   money_in_cents :amount, :units=>"dollars", :unit=>'$', :negative=>'%.2f CR'
+   easy_money :amount
+   easy_money :amount, :units=>"dollars", :unit=>'$', :negative=>'%.2f CR'
  end
 
- ar = AccountReceivable.new
- ar.amount = 100 # 100 cents = $1.00
- ar.amount_money  #=> "1.00"
- ar.amount_money = "-123.45"
- ar.amount        #=> -12345 (cents)
- ar.amount_money(:negative=>'%.2f CR', :zero=>'Free') # Uses these formats 
- ar.amount_dollars #=> "$123.45 CR"
-
+ ledger = Ledger.new
+ ledger.amount = 100 # 100 cents = $1.00
+ ledger.amount_money  #=> "1.00"
+ ledger.amount_money = "-123.45"
+ ledger.amount        #=> -12345 (cents)
+ ledger.amount_money(:negative=>'%.2f CR', :zero=>'Free') # Uses these formats 
+ ledger.amount_dollars #=> "$123.45 CR"
 
  # Track the bets of the Gamesters of Triskelion on their drill thrall competitions.
  class ProviderWagers < ActiveRecord::Base
    include EasyMoney
 
-   money_in_cents :quatloos, :units=>'quatloos', :precision=>3, 
+   easy_money :quatloos, :units=>'quatloos', :precision=>3, 
      :zero=>'even', :nil=>'no bet', :negative=>'%.3f Loss', :unit=>'Q',
      :credit_regex=>/^(-?)(.+\d)\s*Loss/i
    # def amount_quatloos(*args) ...
@@ -57,29 +59,39 @@ Options for Easy Money calls:
 * :zero - The sprintf format to use for zero, default is same as :positive
 * :nil - The sprintf format to use for nil values, default none
 * :unit - Prepend this to the front of the money value, say '$', default none
+* :blank - Return this value when the money string is empty or has no digits on assignment
 * :credit_regex - A Regular Expression used to determine if a number is negative (and without a - sign), defaults to having a "CR" after the number
 
 == Easy Money Formatters
-You can also call or build your own custom conversions. Be sure to ensure that
+You can also call or build your own custom conversions. Ensure that
 you can convert between the integer and money forms if you need to.
+
+The "money" type is a string, sutitable for human editing, and will convert back into 
+integer type. If you override the formatting options, test that your money result 
+string will convert properly back to the original integer value.
 
   include EasyMoney
   ...
-  puts EasyMoney.money_to_cents( money_string, :option=>value, ... )
-  puts EasyMoney.cents_to_money( cents_integer, :option=>value, ... )
+  puts EasyMoney.money_to_integer( money_string, :option=>value, ... )
+  puts EasyMoney.integer_to_money( cents_integer, :option=>value, ... )
+  puts EasyMoney.integer_to_float( cents_integer, :option=>value, ... )
+  puts EasyMoney.float_to_integer( money_float, :option=>value, ... )
 
-The options to these methods are the same as the #money_in_cents declarations
+  EasyMoney.integer_to_float( nil, blank:0.0 ) #=> 0.0  [Ruby 1.9.1 Syntax]
+  EasyMoney.integer_to_float( 12345, :precision=>3 ) #=> 12.345
+  EasyMoney.float_to_integer(12.345111, :precision=>3 ) #=> 12345
+
+The options to these methods are the same as the #easy_money declarations
 
 
-== Note on Patches/Pull Requests
+== To Do
  
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests for it. This is important so I don't break it in a
-  future version unintentionally.
-* Commit, do not mess with rakefile, version, or history.
-  (if you want to have your own version, that is fine but bump version in a commit by itself I can ignore when I pull)
-* Send me a pull request. Bonus points for topic branches.
+* Validate Money string format
+* Global configuration for currency settings
+* Explore rounding vs. truncation issues
+* Use a Locale and I18n on money formatting, without introducing dependencies (perhaps by injection)?
+* Explore inegration of Rails' NumberHelper methods, but not require ActionView
+* Custom converters (useful for say, converting bytes to Gigabytes)?
 
 == Copyright
 

@@ -11,6 +11,6 @@ end
 class Sample
   include EasyMoney
   attr_accessor :price, :balance
-  money_in_cents :price
-  money_in_cents :balance
+  easy_money :price
+  easy_money :balance
 end
