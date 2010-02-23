@@ -1,4 +1,4 @@
-# EasyMoney - Ruby class mixin library to add money helpers to attributes
+# EasyMoney - Ruby class mixin library to add money helpers to attribute/methods
 module EasyMoney
 
   def self.included(base) #:nodoc:
@@ -21,7 +21,7 @@ module EasyMoney
     # * :nil - The sprintf format to use for nil values, default none
     # * :unit - Prepend this to the front of the money value, say '$', default none
     # * :blank - Return this value when the money string is empty or has no digits on assignment
-    # * :credit_regex - A Regular Expression used to determine if a number is negative (and without a - sign)
+    # * :negative_regex - A Regular Expression used to determine if a number is negative (and without a - sign)
     #
     def easy_money(method, *args)
       opt = args.last.is_a?(Hash) ? args.pop : {}
@@ -58,8 +58,7 @@ module EasyMoney
           opt[:negative] || opt[:positive]
         end
       end
-    #value = sprintf( pattern, 1.0 * value / (10**(opt[:precision]||2)) )
-    value = sprintf( pattern, self.integer_to_float(value, opt))
+    value = self.format_money( value, pattern, opt)
     value = opt[:unit]+value if opt[:unit]
     value.gsub!(/\./,opt[:separator]) if opt[:separator]
     if opt[:delimiter] && (m = value.match(/^(\D*)(\d+)(.*)/))
@@ -83,16 +82,43 @@ module EasyMoney
     value.gsub!(opt[:separator],'.') if opt[:separator]
     value.gsub!(/^[^\d\.\-\,]+/,'')
     return (opt[:blank]||nil) unless value =~ /\d/
-    m = value.to_s.match(opt[:credit_regex]||/^(-?)(.+\d)\s*cr/i)
+    m = value.to_s.match(opt[:negative_regex]||/^(-?)(.+\d)\s*cr/i)
     value = value.match(/^-/) ? m[2] : "-#{m[2]}" if m && m[2]
-    value = self.float_to_integer(value.to_f, opt)
+
+    # Money string ("123.45") to proper integer withough passing through the float transformation
+    match = value.match(/(-?\d*)\.?(\d*)/)
+    return 0 unless match
+    value = match[1].to_i * (10 ** (opt[:precision]||2))
+    cents = match[2]
+    cents = cents + '0' while cents.length < (opt[:precision]||2)
+    cents = cents.to_s[0,opt[:precision]||2]
+    value += cents.to_i * (value<0 ? -1 : 1)
     value
   end
 
+  # Returns the integer (cents) value from a Float
   def self.float_to_integer(value, *args)
     opt = args.last.is_a?(Hash) ? args.pop : {}
     return (opt[:blank]||nil) if value.nil?
     value = (value.to_f*(10**((opt[:precision]||2)+1))).to_i/10 # helps rounding 4.56 -> 455 ouch!
+  end
+  
+  # Replacing the sprintf function to deal with money as float. "... %[flags]m ..."
+  def self.format_money(value, pattern="%.2m", *args)
+    opt = args.last.is_a?(Hash) ? args.pop : {}
+    sign = value < 0 ? -1 : 1
+    dollars, cents = value.abs.divmod( 10 ** (opt[:precision]||2))
+    dollars *= sign
+    parts = pattern.match(/^(.*)%([-\. \d+0]*)[fm](.*)/)
+    return pattern unless parts
+    intdec = parts[2].match(/(.*)\.(\d*)/)
+    dprec, cprec = intdec ? [intdec[1], intdec[2]] : ['', '']
+    dollars = sprintf("%#{dprec}d", dollars)
+    cents = '0' + cents.to_s while cents.to_s.length < (opt[:precision]||2)
+    cents = cents.to_s[0,cprec.to_i]
+    cents = cents + '0' while cents.length < cprec.to_i
+    value = parts[1] + "#{(dollars.to_i==0 && sign==-1) ? '-' : '' }#{dollars}#{cents>' '? '.':''}#{cents}" + parts[3]
+    value
   end
 
 end

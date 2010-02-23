@@ -73,4 +73,15 @@ class TestEasyMoney < Test::Unit::TestCase
     assert EasyMoney.integer_to_float(nil    ) == nil
     assert EasyMoney.integer_to_float(9999888, :precision=>3 ) == 9999.888
   end
+  
+  def test_format_money
+    assert EasyMoney.format_money(12345) == '123.45'
+    assert EasyMoney.format_money(12345, "%07.2m") == '0000123.45'
+    assert EasyMoney.format_money(12345, "%07.3m") == '0000123.450'
+    assert EasyMoney.format_money(12345, "%m") == '123'
+    assert EasyMoney.format_money(12345, "free") == 'free'
+    assert EasyMoney.format_money(-12345) == '-123.45'
+    assert EasyMoney.format_money(-12345, "%07.1m") == '-000123.4'
+    assert EasyMoney.format_money(-1) == '-0.01'
+  end
 end
