@@ -87,7 +87,7 @@ string will convert properly back to the original integer value.
   puts EasyMoney.integer_to_float( cents_integer, :option=>value, ... )
   puts EasyMoney.float_to_integer( money_float, :option=>value, ... )
 
-  EasyMoney.integer_to_float( nil, blank:0.0 ) #=> 0.0  [Ruby 1.9.1 Syntax]
+  EasyMoney.integer_to_float( nil, blank:0 ) #=> 0.0  [Ruby 1.9.1 Syntax]
   EasyMoney.integer_to_float( 12345, :precision=>3 ) #=> 12.345
   EasyMoney.float_to_integer(12.345111, :precision=>3 ) #=> 12345
 
