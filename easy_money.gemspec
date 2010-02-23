@@ -5,12 +5,12 @@
 
 Gem::Specification.new do |s|
   s.name = %q{easy_money}
-  s.version = "0.0.0"
+  s.version = "0.1.0"
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["Allen Fair"]
-  s.date = %q{2010-02-18}
-  s.description = %q{Easy Money handling for Rails/ActiveRecord}
+  s.date = %q{2010-02-23}
+  s.description = %q{Easy Money to Integer transformations for Ruby}
   s.email = %q{allen.fair@gmail.com}
   s.extra_rdoc_files = [
     "LICENSE",
@@ -23,6 +23,7 @@ Gem::Specification.new do |s|
      "README.rdoc",
      "Rakefile",
      "VERSION",
+     "easy_money.gemspec",
      "lib/easy_money.rb",
      "test/helper.rb",
      "test/test_easy_money.rb"
@@ -30,8 +31,8 @@ Gem::Specification.new do |s|
   s.homepage = %q{http://github.com/afair/easy_money}
   s.rdoc_options = ["--charset=UTF-8"]
   s.require_paths = ["lib"]
-  s.rubygems_version = %q{1.3.5}
-  s.summary = %q{Easy Money handling for Rails/ActiveRecord}
+  s.rubygems_version = %q{1.3.6}
+  s.summary = %q{Easy Money handling for Ruby Classes}
   s.test_files = [
     "test/helper.rb",
      "test/test_easy_money.rb"
